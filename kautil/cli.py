@@ -17,12 +17,24 @@ from kautil.audio import (
 
 
 @click.group(invoke_without_command=True)
+@click.option("--help", is_flag=True, help="Show full help including all subcommands.")
 @click.version_option(version="0.1.0")
 @click.pass_context
-def main(ctx):
+def main(ctx, help):
     """Kautil - Audio analysis CLI toolkit."""
-    if ctx.invoked_subcommand is None:
+    # Show full help when no subcommand is given OR when --help is passed
+    if ctx.invoked_subcommand is None or help:
+        # Print main group help
         click.echo(ctx.get_help())
+        click.echo("\nCommands:")
+        # Get all registered commands and show their full help
+        for name, cmd in ctx.command.commands.items():
+            # Create a fresh context for each command
+            cmd_ctx = click.Context(cmd, info_name=name)
+            # Print the formatted help for this command
+            click.echo(f"\n{name}:")
+            click.echo(cmd_ctx.get_help())
+        ctx.exit()
 
 
 def load_audio(file_path):
