@@ -16,11 +16,13 @@ from kautil.audio import (
 )
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="0.1.0")
-def main():
+@click.pass_context
+def main(ctx):
     """Kautil - Audio analysis CLI toolkit."""
-    pass
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 def load_audio(file_path):
