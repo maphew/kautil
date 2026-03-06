@@ -57,7 +57,7 @@ Options:
 
 ## Sample output
 
-![test_fingerprint.png](A:\dev\kautil\samples\test_fingerprint.png)
+![test_fingerprint.png](samples/test_fingerprint.png)
 
 ```json
 {
@@ -106,12 +106,6 @@ Options:
   ]
 }
 ```
-
-
-
-
-
-
 
 ## License
 
