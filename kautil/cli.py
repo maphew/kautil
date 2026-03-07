@@ -79,7 +79,7 @@ def get_audio_info(file_path, audio_data, sample_rate):
             "channels": info.channels,
             "codec": info.format,
         }
-    except Exception:
+    except sf.SoundFileError:
         duration = len(audio_data) / sample_rate if sample_rate > 0 else 0
         channels = audio_data.shape[1] if audio_data.ndim > 1 else 1
         return {
