@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import click
+import numpy as np
 import soundfile as sf
 
 from kautil.audio import (
@@ -38,20 +39,67 @@ def main(ctx, help):
 
 
 def load_audio(file_path):
-    """Load audio file and return data and sample rate."""
-    audio_data, sample_rate = sf.read(file_path, dtype="float32")
-    return audio_data, sample_rate
+    """Load audio file and return data and sample rate.
+
+    Tries soundfile first, falls back to audioread+ffmpeg on failure.
+    """
+    try:
+        audio_data, sample_rate = sf.read(file_path, dtype="float32")
+        return audio_data, sample_rate
+    except sf.SoundFileError:
+        import audioread
+
+        with audioread.audio_open(file_path) as f:
+            sample_rate = f.samplerate
+            channels = f.channels
+            chunks = []
+            for chunk in f:
+                if chunk.dtype == np.int16:
+                    int_data = np.frombuffer(chunk, dtype=np.int16)
+                    float_data = int_data.astype(np.float32) / 32768.0
+                elif chunk.dtype == np.int8:
+                    int_data = np.frombuffer(chunk, dtype=np.int8)
+                    float_data = int_data.astype(np.float32) / 128.0
+                elif chunk.dtype == np.int32:
+                    int_data = np.frombuffer(chunk, dtype=np.int32)
+                    float_data = int_data.astype(np.float32) / 2147483648.0
+                elif chunk.dtype == np.float32:
+                    float_data = np.frombuffer(chunk, dtype=np.float32)
+                else:
+                    int_data = np.frombuffer(chunk, dtype=np.int16)
+                    float_data = int_data.astype(np.float32) / 32768.0
+                chunks.append(float_data)
+
+        audio = np.concatenate(chunks)
+
+        if channels > 1:
+            audio = audio.reshape((-1, channels))
+
+        return audio, sample_rate
 
 
 def get_audio_info(file_path, audio_data, sample_rate):
-    """Extract basic audio file info."""
-    info = sf.info(file_path)
-    return {
-        "duration_seconds": info.duration,
-        "sample_rate": info.samplerate,
-        "channels": info.channels,
-        "codec": info.format,
-    }
+    """Extract basic audio file info.
+
+    Tries soundfile first, falls back to calculated values from audio data.
+    """
+    try:
+        info = sf.info(file_path)
+        return {
+            "duration_seconds": info.duration,
+            "sample_rate": info.samplerate,
+            "channels": info.channels,
+            "codec": info.format,
+        }
+    except sf.SoundFileError:
+        duration = len(audio_data) / sample_rate if sample_rate > 0 else 0
+        channels = audio_data.shape[1] if audio_data.ndim > 1 else 1
+        return {
+            "duration_seconds": duration,
+            "sample_rate": sample_rate,
+            "channels": channels,
+            "codec": "unknown",
+        }
 
 
 @main.command()
