@@ -97,7 +97,7 @@ def detect_silence(audio_data, sample_rate, threshold_db=-40.0, min_duration=0.5
     Args:
         audio_data: Audio samples as numpy array
         sample_rate: Sample rate in Hz
-        threshold_db: Silence threshold in dB (default: -40.0)
+        threshold_db: Silence threshold in dB relative to max RMS (default: -40.0)
         min_duration: Minimum duration in seconds (default: 0.5)
 
     Returns:
@@ -106,58 +106,67 @@ def detect_silence(audio_data, sample_rate, threshold_db=-40.0, min_duration=0.5
             - end: End time in seconds
             - duration: Duration in seconds
     """
-    # Ensure audio is 1D
     if audio_data.ndim > 1:
         audio_mono = np.mean(audio_data, axis=1)
     else:
         audio_mono = audio_data
 
-    # Convert threshold from dB to linear
-    threshold_linear = 10 ** (threshold_db / 20.0)
+    frame_length = int(0.02 * sample_rate)
+    hop_length = int(0.01 * sample_rate)
 
-    # Calculate RMS in windows
-    window_size = int(0.01 * sample_rate)  # 10ms windows
-    hop_size = window_size // 2
+    frames = []
+    for i in range(0, len(audio_mono) - frame_length, hop_length):
+        frame = audio_mono[i : i + frame_length]
+        rms = np.sqrt(np.mean(frame**2))
+        frames.append(rms)
 
-    is_silent = np.zeros(len(audio_mono), dtype=bool)
+    frames = np.array(frames)
 
-    for start in range(0, len(audio_mono) - window_size + 1, hop_size):
-        end = start + window_size
-        window = audio_mono[start:end]
-        rms = np.sqrt(np.mean(window**2))
-        if rms < threshold_linear:
-            is_silent[start:end] = True
+    if len(frames) == 0:
+        return []
 
-    # Find contiguous regions
+    max_rms = np.max(frames)
+    if max_rms > 0:
+        db_values = 20 * np.log10(frames / max_rms)
+    else:
+        db_values = np.full_like(frames, -np.inf)
+
+    silent_frames = db_values < threshold_db
+
     silence_regions = []
     in_silence = False
-    silence_start = 0
+    start_frame = 0
 
-    for i in range(len(is_silent)):
-        if is_silent[i] and not in_silence:
+    for i, is_silent in enumerate(silent_frames):
+        if is_silent and not in_silence:
+            start_frame = i
             in_silence = True
-            silence_start = i
-        elif not is_silent[i] and in_silence:
-            in_silence = False
-            duration = (i - silence_start) / sample_rate
+        elif not is_silent and in_silence:
+            start_time = start_frame * hop_length / sample_rate
+            end_time = i * hop_length / sample_rate
+            duration = end_time - start_time
+
             if duration >= min_duration:
                 silence_regions.append(
                     {
-                        "start": silence_start / sample_rate,
-                        "end": i / sample_rate,
-                        "duration": duration,
+                        "start": round(start_time, 3),
+                        "end": round(end_time, 3),
+                        "duration": round(duration, 3),
                     }
                 )
+            in_silence = False
 
-    # Handle trailing silence
     if in_silence:
-        duration = (len(is_silent) - silence_start) / sample_rate
+        start_time = start_frame * hop_length / sample_rate
+        end_time = len(audio_mono) / sample_rate
+        duration = end_time - start_time
+
         if duration >= min_duration:
             silence_regions.append(
                 {
-                    "start": silence_start / sample_rate,
-                    "end": len(is_silent) / sample_rate,
-                    "duration": duration,
+                    "start": round(start_time, 3),
+                    "end": round(end_time, 3),
+                    "duration": round(duration, 3),
                 }
             )
 
