@@ -15,14 +15,14 @@ def format_summary(results: Dict[str, Any]) -> str:
     """
     lines = []
     lines.append("=" * 60)
-    lines.append(f"File: {results['file']}")
-    lines.append(f"Duration: {results['duration_seconds']}s")
-    lines.append(f"Sample Rate: {results['sample_rate']} Hz")
-    lines.append(f"Channels: {results['channels']}")
+    lines.append(f"File: {results.get('file', 'Unknown')}")
+    lines.append(f"Duration: {results.get('duration_seconds', 0)}s")
+    lines.append(f"Sample Rate: {results.get('sample_rate', 0)} Hz")
+    lines.append(f"Channels: {results.get('channels', 0)}")
     lines.append("=" * 60)
 
     # Loudness
-    loudness = results["loudness"]
+    loudness = results.get("loudness", {})
     lines.append(f"\nLoudness:")
     lines.append(f"  Integrated: {loudness['integrated_lufs']} LUFS")
     lines.append(f"  LRA: {loudness['loudness_range_lra']} LU")
@@ -40,7 +40,7 @@ def format_summary(results: Dict[str, Any]) -> str:
         )
 
     # Silence
-    silence = results["silence"]
+    silence = results.get("silence", [])
     lines.append(f"\nSilence: {len(silence)} regions")
     if silence:
         for i, region in enumerate(silence[:5]):
@@ -51,7 +51,7 @@ def format_summary(results: Dict[str, Any]) -> str:
             lines.append(f"  +{len(silence) - 5} more")
 
     # Speaker changes
-    speakers = results["speaker_changes"]
+    speakers = results.get("speaker_changes", [])
     lines.append(f"\nSpeaker Changes: {len(speakers)} detected")
     if speakers:
         for change in speakers[:5]:
@@ -62,7 +62,7 @@ def format_summary(results: Dict[str, Any]) -> str:
             lines.append(f"  +{len(speakers) - 5} more")
 
     # Solo regions
-    solos = results["solo_regions"]
+    solos = results.get("solo_regions", [])
     lines.append(f"\nActivity/Solo Regions: {len(solos)} detected")
     if solos:
         for region in solos[:5]:
