@@ -135,15 +135,17 @@ def format_summary(results: Dict[str, Any]) -> str:
     Returns:
         Formatted summary string.
     """
-    loudness = results["loudness"]
-    silence = results["silence"]
-    speaker_changes = results["speaker_changes"]
-    solo_regions = results["solo_regions"]
+    loudness = results.get("loudness", {})
+    silence = results.get("silence", [])
+    speaker_changes = results.get("speaker_changes", [])
+    solo_regions = results.get("solo_regions", [])
 
     lines = []
     lines.append(f"\nFingerprint generated successfully!")
-    lines.append(f"  Integrated loudness: {loudness['integrated_lufs']:.1f} LUFS")
-    lines.append(f"  Loudness range: {loudness['loudness_range_lra']:.1f} LU")
+    lines.append(
+        f"  Integrated loudness: {loudness.get('integrated_lufs', 0):.1f} LUFS"
+    )
+    lines.append(f"  Loudness range: {loudness.get('loudness_range_lra', 0):.1f} LU")
     lines.append(f"  Silence regions: {len(silence)}")
     lines.append(f"  Speaker changes: {len(speaker_changes)}")
     lines.append(f"  Solo/active regions: {len(solo_regions)}")
