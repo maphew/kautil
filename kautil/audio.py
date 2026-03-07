@@ -2,6 +2,7 @@
 
 import numpy as np
 import pyloudnorm as pyln
+from math import ceil
 
 
 def analyze_loudness(audio_data, sample_rate):
@@ -188,12 +189,14 @@ def detect_speaker_changes(
         audio_mono = audio_data
 
     # Compute mean-squared energy in non-overlapping windows
-    samples_per_segment = int(segment_duration * sample_rate)
-    num_segments = len(audio_mono) // samples_per_segment
+    segment_samples = max(1, int(segment_duration * sample_rate))
+    num_segments = ceil(len(audio_mono) / segment_samples)
 
     energies = []
     for i in range(num_segments):
-        segment = audio_mono[i * samples_per_segment : (i + 1) * samples_per_segment]
+        start = i * segment_samples
+        end = min(len(audio_mono), (i + 1) * segment_samples)
+        segment = audio_mono[start:end]
         mse = np.mean(segment**2)
         energies.append(mse)
 
@@ -218,22 +221,23 @@ def detect_speaker_changes(
 
     # Find changes exceeding threshold with verification
     changes = []
+    window = 2
     for i in range(len(diffs)):
         if diffs[i] >= threshold:
-            # Verify by comparing average energy 2 windows before vs 2 windows after
-            before_start = max(0, i - 2)
-            after_end = min(len(normalized), i + 3)
+            before_slice = normalized[max(0, i - window) : i + 1]
+            after_slice = normalized[i + 1 : min(len(normalized), i + 1 + window)]
 
-            before_avg = np.mean(normalized[before_start : i + 1]) if i >= 1 else 0
-            after_avg = (
-                np.mean(normalized[i + 1 : after_end]) if i + 1 < len(normalized) else 0
-            )
+            if len(before_slice) == 0 or len(after_slice) == 0:
+                continue
+
+            before_avg = np.mean(before_slice)
+            after_avg = np.mean(after_slice)
 
             verify_diff = abs(after_avg - before_avg)
 
             if verify_diff >= threshold * 0.5:
                 confidence = min(1.0, diffs[i] * 2)
-                time_seconds = (i + 1) * samples_per_segment / sample_rate
+                time_seconds = (i + 1) * segment_samples / sample_rate
                 changes.append(
                     {
                         "time": round(time_seconds, 2),
