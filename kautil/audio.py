@@ -2,6 +2,7 @@
 
 import numpy as np
 import pyloudnorm as pyln
+from math import ceil
 
 
 def analyze_loudness(audio_data, sample_rate):
@@ -163,7 +164,9 @@ def detect_silence(audio_data, sample_rate, threshold_db=-40.0, min_duration=0.5
     return silence_regions
 
 
-def detect_speaker_changes(audio_data, sample_rate, sensitivity=0.5):
+def detect_speaker_changes(
+    audio_data, sample_rate, sensitivity=0.5, segment_duration=0.5
+):
     """Detect speaker changes based on energy variations.
 
     Args:
@@ -171,6 +174,7 @@ def detect_speaker_changes(audio_data, sample_rate, sensitivity=0.5):
         sample_rate: Sample rate in Hz
         sensitivity: Detection sensitivity 0.0-1.0 (default: 0.5)
             Higher values = more sensitive to changes
+        segment_duration: Duration of each segment in seconds (default: 0.5)
 
     Returns:
         List of speaker changes, each with:
@@ -184,67 +188,60 @@ def detect_speaker_changes(audio_data, sample_rate, sensitivity=0.5):
     else:
         audio_mono = audio_data
 
-    # Calculate energy in windows
-    window_size = int(0.05 * sample_rate)  # 50ms windows
-    hop_size = window_size // 2
+    # Compute mean-squared energy in non-overlapping windows
+    segment_samples = max(1, int(segment_duration * sample_rate))
+    num_segments = ceil(len(audio_mono) / segment_samples)
 
     energies = []
-    times = []
-
-    for start in range(0, len(audio_mono) - window_size + 1, hop_size):
-        end = start + window_size
-        window = audio_mono[start:end]
-        energy = np.mean(window**2)
-        energies.append(energy)
-        times.append(start / sample_rate)
-
-    if len(energies) < 2:
-        return []
+    for i in range(num_segments):
+        start = i * segment_samples
+        end = min(len(audio_mono), (i + 1) * segment_samples)
+        segment = audio_mono[start:end]
+        mse = np.mean(segment**2)
+        energies.append(mse)
 
     energies = np.array(energies)
-    times = np.array(times)
 
-    # Calculate energy differences
-    energy_diff = np.abs(np.diff(energies))
+    # Handle edge case: no segments generated (audio too short)
+    if len(energies) == 0:
+        return []
 
-    # Normalize by mean energy
-    mean_energy = np.mean(energies)
-    if mean_energy > 0:
-        normalized_diff = energy_diff / mean_energy
+    # Normalize to [0, 1]
+    max_energy = np.max(energies)
+    if max_energy > 0:
+        normalized = energies / max_energy
     else:
-        normalized_diff = energy_diff
+        normalized = energies
 
-    # Apply sensitivity threshold
-    # Higher sensitivity = lower threshold
-    threshold = 1.0 - sensitivity  # sensitivity 0.5 -> threshold 0.5
-    threshold = max(0.1, min(0.9, threshold))  # Clamp to 0.1-0.9
+    # Compute absolute differences between consecutive windows
+    diffs = np.abs(np.diff(normalized))
 
-    # Find peaks in normalized difference
+    # Threshold based on sensitivity
+    threshold = (1.0 - sensitivity) * 0.3 + 0.05
+
+    # Find changes exceeding threshold with verification
     changes = []
-    min_distance = int(0.5 / (hop_size / sample_rate))  # Min 0.5s between changes
+    window = 2
+    for i in range(len(diffs)):
+        if diffs[i] >= threshold:
+            before_slice = normalized[max(0, i - window) : i + 1]
+            after_slice = normalized[i + 1 : min(len(normalized), i + 1 + window)]
 
-    # Simple peak detection
-    for i in range(len(normalized_diff)):
-        if normalized_diff[i] > threshold:
-            # Check if this is a local maximum
-            is_peak = True
-            for j in range(
-                max(0, i - min_distance),
-                min(len(normalized_diff), i + min_distance + 1),
-            ):
-                if j != i and normalized_diff[j] > normalized_diff[i]:
-                    is_peak = False
-                    break
+            if len(before_slice) == 0 or len(after_slice) == 0:
+                continue
 
-            if is_peak:
-                # Calculate confidence based on how far above threshold
-                confidence = min(1.0, normalized_diff[i] / (threshold * 2))
-                confidence = max(0.0, confidence)
+            before_avg = np.mean(before_slice)
+            after_avg = np.mean(after_slice)
 
+            verify_diff = abs(after_avg - before_avg)
+
+            if verify_diff >= threshold * 0.5:
+                confidence = min(1.0, diffs[i] * 2)
+                time_seconds = (i + 1) * segment_samples / sample_rate
                 changes.append(
                     {
-                        "time": float(times[i]),
-                        "confidence": float(confidence),
+                        "time": round(time_seconds, 2),
+                        "confidence": round(confidence, 2),
                         "type": "amplitude_change",
                     }
                 )
