@@ -46,7 +46,7 @@ def load_audio(file_path):
     try:
         audio_data, sample_rate = sf.read(file_path, dtype="float32")
         return audio_data, sample_rate
-    except Exception:
+    except sf.SoundFileError:
         import audioread
 
         with audioread.audio_open(file_path) as f:
@@ -54,8 +54,20 @@ def load_audio(file_path):
             channels = f.channels
             chunks = []
             for chunk in f:
-                int_data = np.frombuffer(chunk, dtype=np.int16)
-                float_data = int_data.astype(np.float32) / 32768.0
+                if chunk.dtype == np.int16:
+                    int_data = np.frombuffer(chunk, dtype=np.int16)
+                    float_data = int_data.astype(np.float32) / 32768.0
+                elif chunk.dtype == np.int8:
+                    int_data = np.frombuffer(chunk, dtype=np.int8)
+                    float_data = int_data.astype(np.float32) / 128.0
+                elif chunk.dtype == np.int32:
+                    int_data = np.frombuffer(chunk, dtype=np.int32)
+                    float_data = int_data.astype(np.float32) / 2147483648.0
+                elif chunk.dtype == np.float32:
+                    float_data = np.frombuffer(chunk, dtype=np.float32)
+                else:
+                    int_data = np.frombuffer(chunk, dtype=np.int16)
+                    float_data = int_data.astype(np.float32) / 32768.0
                 chunks.append(float_data)
 
         audio = np.concatenate(chunks)
