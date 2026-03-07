@@ -78,6 +78,7 @@ def get_audio_info(file_path, audio_data, sample_rate):
             "sample_rate": info.samplerate,
             "channels": info.channels,
             "codec": info.format,
+            "frames": info.frames,
         }
     except sf.SoundFileError:
         duration = len(audio_data) / sample_rate if sample_rate > 0 else 0
@@ -87,6 +88,7 @@ def get_audio_info(file_path, audio_data, sample_rate):
             "sample_rate": sample_rate,
             "channels": channels,
             "codec": "unknown",
+            "frames": len(audio_data) if audio_data.ndim == 1 else audio_data.shape[0],
         }
 
 

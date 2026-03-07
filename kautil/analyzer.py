@@ -30,6 +30,7 @@ def get_audio_info(file_path, audio_data, sample_rate):
         "sample_rate": info.samplerate,
         "channels": info.channels,
         "codec": info.format,
+        "frames": info.frames,
     }
 
 
