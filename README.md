@@ -54,12 +54,18 @@ Options:
   -j, --json-path PATH       Custom JSON output path
   -v, --verbose              Show detailed output
   --help                     Show this message and exit.
-
 ```
 
 ## Sample output
 
-![test_fingerprint.png](samples/test_fingerprint.png)
+Pop music:
+![Carsie Blanton sample](samples/Smoke%20Alarm%20-%20Carsie%20Blanton_fingerprint.png)
+
+Classical music:
+![Night on Bald Mtn sample](samples/Mussorgsky%20-%20Night%20on%20Bald%20Mountain%20(Skidmore%20College%20Orchestra)_fingerprint.png)
+
+Spoken word:
+![Carl Sagan sample](samples/Carl%20Sagan%20-%20Commencement%20Address%201990_fingerprint.png)
 
 ```json
 {
@@ -106,7 +112,6 @@ Options:
       "type": "possible_solo"
     }
   ]
-
 }
 ```
 
