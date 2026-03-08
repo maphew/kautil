@@ -1,6 +1,8 @@
 # Kautil
 
-Audio analysis CLI toolkit - a drop-in replacement for autil (Audio Utilities).
+Audio analysis CLI toolkit - a drop-in replacement for autil (Audio Utilities) written from ground up using Kilocode CLI.
+
+> **autil** (Audio Utilities) is a CLI-first audio analysis toolkit. It produces an audio "fingerprint" — a JSON report and PNG visualization — containing loudness analysis, silence detection, speaker-change detection, and solo/activity region detection.
 
 ## Installation
 
@@ -104,6 +106,7 @@ Options:
       "type": "possible_solo"
     }
   ]
+
 }
 ```
 
